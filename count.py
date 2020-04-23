@@ -1,0 +1,78 @@
+import numpy as np
+import cv2
+
+
+def isPointInRect(p, rect):
+    '''
+    judge weather the point is in the area, the rect area must be convex, Counterclockwise
+    '''
+    a, b, c, d = rect[0], rect[1], rect[2], rect[3]
+    t1 = (b[0] - a[0])*(p[1] - a[1]) - (b[1] - a[1])*(p[0] - a[0])
+    t2 = (c[0] - b[0])*(p[1] - b[1]) - (c[1] - b[1])*(p[0] - b[0])
+    t3 = (d[0] - c[0])*(p[1] - c[1]) - (d[1] - c[1])*(p[0] - c[0])
+    t4 = (a[0] - d[0])*(p[1] - d[1]) - (a[1] - d[1])*(p[0] - d[0])
+
+    if (t1>0 and t2>0 and t3>0 and t4>0) or (t1<0 and t2<0 and t3<0 and t4<0):
+        return True
+    else:
+        return False
+
+def get_car_num(pred_img, pred_result, roi, stop_line):
+    '''
+    count cars int the roi area for a single img
+    '''
+    car_num = [[0, 0, 0], [0, 0, 0]]
+    pts = np.array(roi)
+    line_color = (255, 0, 0)
+    cv2.polylines(pred_img, pts, 1, line_color)
+    cv2.line(pred_img, (roi[0][1][0], stop_line[1]), (roi[1][0][0], stop_line[1]), line_color)
+    cv2.line(pred_img, (roi[0][1][0], stop_line[2]), (roi[1][0][0], stop_line[2]), line_color)
+    for i in range(len(pred_result)):
+        x1 = pred_result[i]['points'][0]
+        y1 = pred_result[i]['points'][1]
+        x2 = pred_result[i]['points'][2]
+        y2 = pred_result[i]['points'][3]
+        label = pred_result[i]['label']
+        score = pred_result[i]['score']
+
+        center = x1 + (x2 - x1) / 2, y1 + (y2 - y1) / 2
+        if label == "car" or label == "bus" or label == "truck":
+            for ch in range(len(roi)):
+                if isPointInRect(center, roi[ch]):
+                    c_y = center[1]
+                    if (c_y < stop_line[0]) and (c_y > stop_line[1]):
+                        car_num[ch][0] += 1
+                    elif (c_y < stop_line[1]) and (c_y > stop_line[2]):
+                        car_num[ch][1] += 1
+                    elif (c_y < stop_line[2]):
+                        car_num[ch][2] += 1
+
+    return car_num
+
+def draw_counts(img, car_num, img_shape):
+    '''
+    pt1 ----
+    '''
+    img_ = cv2.resize(img, img_shape)
+    pt1 = (img_shape[0]-5-60, 20)
+    pt2 = (img_shape[0]-5, 20+80)
+    line_color = (0, 128, 255)
+    cv2.rectangle(img_, pt1, pt2, line_color)
+    cv2.line(img_, (pt1[0], pt1[1] + 20), (pt1[0] + 60, pt1[1] + 20), line_color)
+    cv2.line(img_, (pt1[0], pt1[1] + 65), (pt1[0] + 60, pt1[1] + 65), line_color)
+    cv2.line(img_, (pt1[0] + 30, pt1[1]), (pt1[0] + 30, pt1[1] + 80), line_color)
+    cv2.putText(img_, 'left', (pt1[0] + 2, pt1[1] + 17), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
+    cv2.putText(img_, '{}'.format(car_num[0][0]), (pt1[0] + 5, pt1[1] + 17 +15), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
+    cv2.putText(img_, '{}'.format(car_num[0][1]), (pt1[0] + 5, pt1[1] + 17 +30), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
+    cv2.putText(img_, '{}'.format(car_num[0][2]), (pt1[0] + 5, pt1[1] + 17 +45), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
+    cv2.putText(img_, '{}'.format(sum(car_num[0])), (pt1[0] + 5, pt1[1] + 17 +60), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
+    cv2.putText(img_, 'others', (pt1[0] + 2 + 30, pt1[1] + 17), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
+    cv2.putText(img_, '{}'.format(car_num[1][0]), (pt1[0] + 5 + 30, pt1[1] + 17 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
+    cv2.putText(img_, '{}'.format(car_num[1][1]), (pt1[0] + 5 + 30, pt1[1] + 17 + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
+    cv2.putText(img_, '{}'.format(car_num[1][2]), (pt1[0] + 5 + 30, pt1[1] + 17 + 45), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
+    cv2.putText(img_, '{}'.format(sum(car_num[1])), (pt1[0] + 5 + 30, pt1[1] + 17 + 60), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
+    return img_
+            
+
+        
+
