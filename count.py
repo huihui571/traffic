@@ -52,20 +52,32 @@ def get_car_num(pred_img, pred_result, roi, stop_line):
         label = pred_result[i]['label']
         score = pred_result[i]['score']
 
+        if not (label == "car" or label == "bus" or label == "truck"):
+            continue
+            
         center = x1 + (x2 - x1) / 2, y1 + (y2 - y1) / 2
         bottom_center = x1 + (x2 - x1) / 2, y2
-        if label == "car" or label == "bus" or label == "truck":
-            for ch in range(len(roi)):
-                # judge by the bottom_center of the bounding box, added center for the left roi
-                if isPointInRect(bottom_center, roi[ch]) or isPointInRect(center, roi[0]):
-                    cv2.circle(pred_img, (int(bottom_center[0]), int(bottom_center[1])), 5, (0, 0, 255))
-                    c_y = center[1]
+        for ch in range(len(roi)):
+            # judge by the bottom_center of the bounding box, added center for the left roi
+            if isPointInRect(bottom_center, roi[ch]) or isPointInRect(center, roi[0]):
+                cv2.circle(pred_img, (int(bottom_center[0]), int(bottom_center[1])), 5, (0, 0, 255))
+                c_y = center[1]
+                if label == "car":
                     if (c_y > stop_line[1]):
                         car_num[ch][0] += 1
                     elif (c_y < stop_line[1]) and (c_y > stop_line[2]):
                         car_num[ch][1] += 1
                     elif (c_y < stop_line[2]):
                         car_num[ch][2] += 1
+                elif label == "bus" or label == "truck":
+                    # count 3 num for one bus or truck
+                    if (c_y > stop_line[1]):
+                        car_num[ch][0] += 3
+                    elif (c_y < stop_line[1]) and (c_y > stop_line[2]):
+                        car_num[ch][1] += 3
+                    elif (c_y < stop_line[2]):
+                        car_num[ch][2] += 3
+
 
     return car_num
 
