@@ -17,7 +17,7 @@ from Detector.EfficientDet.utils.utils import preprocess_raw, invert_affine, pos
 
 
 class Model():
-    def __init__(self, compound_coef=4, force_input_size=256, threshold=0.2, iou_threshold=0.15):
+    def __init__(self, compound_coef=3, force_input_size=256, threshold=0.2, iou_threshold=0.15):
     #def __init__(self, compound_coef=0, force_input_size=512, threshold=0.2, iou_threshold=0.15):
         self.compound_coef = compound_coef
         self.force_input_size = force_input_size  # set None to use default size
