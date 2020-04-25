@@ -14,7 +14,7 @@ cam_ips = [
 user_name = 'admin'
 user_pwd = 'adimn12345'
 camera_ip = '37.44.169.10'
-show_img_size = (600, 600)
+show_img_size = (300, 300)
 
 # [left,others]
 
