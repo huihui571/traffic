@@ -56,13 +56,13 @@ class Model():
         assert (cls>=0 and cls<self.num_classes)
         label = "{0}".format(self.classes[cls]) # class name
         color = random.choice(self.colors)
-
-        cv2.rectangle(img, c1, c2, color, 1)
-        t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 1, 1)[0]
-        c2 = c1[0] + t_size[0] + 3, c1[1] + t_size[1] + 4
-        cv2.rectangle(img, c1, c2, color, -1)
-        cv2.putText(img, label, (c1[0], c1[1] + t_size[1] + 4),
-                    cv2.FONT_HERSHEY_PLAIN, 1, [225, 255, 255], 1)
+        if label == "car" or label == "bus" or label == "truck":
+            cv2.rectangle(img, c1, c2, color, 1)
+            t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 1, 1)[0]
+            c2 = c1[0] + t_size[0] + 3, c1[1] + t_size[1] + 4
+            cv2.rectangle(img, c1, c2, color, -1)
+            cv2.putText(img, label, (c1[0], c1[1] + t_size[1] + 4),
+                        cv2.FONT_HERSHEY_PLAIN, 1, [225, 255, 255], 1)
         return img
 
 

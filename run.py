@@ -7,7 +7,7 @@ import numpy as np
 import logging
 import sys
 
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.INFO)
 
 from settings import cam_addrs, roi, stop_line, crop_offset, crop_size, show_img_size
 from Detector.YOLO.gpu_detector import Model
@@ -19,8 +19,6 @@ from commu.detect_server import run_detect_server
 crop_roi_once = True
 crop_roi = roi.copy()
 crop_stop_line = stop_line.copy()
-
-
 def crop_image(src_img, cam_id):
     det_img = src_img[crop_offset[cam_id][0]: crop_offset[cam_id][0] + crop_size[0],
               crop_offset[cam_id][1] : crop_offset[cam_id][1] + crop_size[1]]
@@ -39,7 +37,6 @@ def crop_image(src_img, cam_id):
 
     # print("cam_id:{}, roi:{}".format(cam_id, roi[cam_id]))
     return det_img
-
 
 def push_image(raw_q, cam_addr, cam_id=0):
     cap = cv2.VideoCapture(cam_addr, cv2.CAP_FFMPEG)
@@ -71,22 +68,13 @@ def predict(raw_q, pred_q, tcp_q=None, cam_id = 0):
 
     logging.info('PID: {}, SIZE: {}'.format(os.getpid(), raw_q.qsize()))
     while is_opened:
-        t1 = time.time()
         logging.info('{} blocked: raw_q: {}, pred_q: {}'.format(os.getpid(), raw_q.qsize(), pred_q.qsize()))
         raw_img = raw_q.get()
-        t2 = time.time()
-        print("predict get raw_q time: {}".format(t2 - t1))
         logging.info('{} got image: raw_q: {}, pred_q: {}'.format(os.getpid(), raw_q.qsize(), pred_q.qsize()))
 
         raw_img= crop_image(raw_img, cam_id)
-        t3 = time.time()
-        print("predict crop image time: {}".format(t3 - t2))
         pred_img, pred_result = model.predict(raw_img)
-        t4 = time.time()
-        print("predict mode.predict time: {}".format(t4 - t3))
         car_num = get_car_num(pred_img, pred_result, crop_roi[cam_id], crop_stop_line[cam_id])
-        t5 = time.time()
-        print("predict get car num time: {}".format(t5 - t4))
         # gantian
         # pred_img = raw_img
         # car_num = [[0, 0, 0], [0, 0, 0]]
@@ -147,8 +135,6 @@ def combine_images(img_queue_list, window_name, img_shape):
         t1 = time.time()
         result = [q.get() for q in img_queue_list]
         logging.info('combine got result')
-        t2 = time.time()
-        print("combine get show_q time: {}".format(t2 -t1))
 
         ###gantian
         imgs = list(map(lambda x: draw_counts(x[0], x[1], img_shape), result))
@@ -161,9 +147,9 @@ def combine_images(img_queue_list, window_name, img_shape):
 
         # cv2.imwrite('det/result.jpg', imgs)
         cv2.waitKey(1)
-        t3= time.time()
+        t2 = time.time()
         # logging.info('---------show---combine time:{:4f}--------------------'.format(t2-t1))
-        print('---------show---combine time:{:4f}--------------------'.format(t3-t2))
+        print('---------show---combine time:{:4f}--------------------'.format(t2-t1))
 
 
 def run_multi_camera_in_a_window(cam_addrs, img_shape):
@@ -171,9 +157,9 @@ def run_multi_camera_in_a_window(cam_addrs, img_shape):
     show_queues = [mp.Queue(maxsize=4) for _ in cam_addrs]
     tcp_queues = [mp.Queue(maxsize=4) for _ in cam_addrs]
 
-    processes = [mp.Process(name="dsrv",target=run_detect_server, args=(tcp_queues, ))] # FIXME: report error if remove the ","
+    processes = [mp.Process(name="dsrv",target=run_detect_server, args=(tcp_queues, ))] #FIXME: report error if remove the ","
     # processes = []
-    processes.append(mp.Process(name="comb", target=combine_images, args=(show_queues, 'CAMs', img_shape)))
+    processes.append(mp.Process(name="comb",target=combine_images, args=(show_queues, 'CAMs', img_shape)))
     # gantian
     for raw_q, show_q, tcp_q, cam_addr, cam_id in zip(raw_queues, show_queues, tcp_queues, cam_addrs, range(len(cam_addrs))):
         processes.append(mp.Process(name="push",target=push_image, args=(raw_q, cam_addr, cam_id)))
