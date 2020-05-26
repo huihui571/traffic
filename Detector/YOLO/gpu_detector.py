@@ -8,7 +8,7 @@ import cv2
 from Detector.YOLO.util import *
 from Detector.YOLO.darknet import Darknet
 from Detector.YOLO.preprocess import prep_frame, inp_to_image, letterbox_image
-import pandas as pd
+# import pandas as pd
 import random
 import pickle as pkl
 import argparse
