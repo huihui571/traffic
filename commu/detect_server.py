@@ -20,8 +20,8 @@ class DetectServerClass(threading.Thread):
         #self.server_addr = ('37.44.137.37', 8888)
         self.serverIP = "127.0.0.1"
         self.serverPort =  8888
-        # self.serverIP = "37.44.137.37"
-        # self.serverPort =  8888
+        #self.serverIP = "37.44.137.37"
+        #self.serverPort =  8888
         self.serverAddr = (self.serverIP, self.serverPort)
         self.modeType = ModeTypeEnum.UndefinedMode
         self.serverSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -43,10 +43,14 @@ class DetectServerClass(threading.Thread):
 
     def resetConnection(self):
         self.connectState = ConnectStatEnum.UnConnect
-        if(len(self.cliSockets)>0):
-            self.cliSockets[0].shutdown(socket.SHUT_RDWR)
-            self.cliSockets[0].close()
-            del self.cliSockets[0]
+        try:
+            if(len(self.cliSockets)>0):
+                self.cliSockets[0].shutdown(socket.SHUT_RDWR)
+                self.cliSockets[0].close()
+                del self.cliSockets[0]
+        except Exception as e:
+            pass
+
         self.cliSockets = []
         self.stopPluseModeThread()
     '''            
@@ -180,7 +184,7 @@ class DetectServerClass(threading.Thread):
                 try:
                     time.sleep(0.05) #sleep 50ms
                     recvData = conn.recv(1024) # should no wait
-                    print('recv_data: {}'.format(recvData))
+                    # print('recv_data: {}'.format(recvData))
                 except BlockingIOError as e:
                     pass
                 except Exception as e:

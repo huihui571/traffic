@@ -42,7 +42,10 @@ class QueryClientClass(threading.Thread):
         self.connectState = CliStatEnum.UnConnect
     
     def resetClient(self):
-        self.clientSocket.shutdown(socket.SHUT_RDWR)
+        try:
+            self.clientSocket.shutdown(socket.SHUT_RDWR)
+        except Exception as e:
+            pass
         self.clientSocket.close()
         self.clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.connectState = CliStatEnum.UnConnect
@@ -75,29 +78,29 @@ class QueryClientClass(threading.Thread):
 
     def checkConQuery(self):
         if(self.connectState != CliStatEnum.ConnectOk):
-            return
+            return 1
      
         nowTime = time.time()    
         if(nowTime <(self.conQueryTime + self.conQueryTimeOut)):
-            return
+            return 1
            
         if(nowTime <(self.conQueryTime + self.conQueryTimeInterval)):
             if(self.conQueryAck):
                self.conQueryNoAckCnt = 0
-               return
+               return 1
             else:
                self.conQueryNoAckCnt = self.conQueryNoAckCnt + 1
                
             if(self.conQueryNoAckCnt >=3):
                 print("conQuery error {} time no ack,connection is off".format(self.conQueryNoAckCnt))
                 self.resetClient()
-                return
+                return 0
             else:
                 self.sendConnectionQueryCmd()
-                return
+                return 1
         else:
             self.sendConnectionQueryCmd()
-            return       
+            return 1   
 
         
     def handleQueryConAckCmd(self,recvData):
@@ -162,7 +165,8 @@ class QueryClientClass(threading.Thread):
         print ("开始线程：" + self.name)
         while self.threadRunningFlag:
             self.doReConntion()
-            self.checkConQuery()
+            if(0 == self.checkConQuery()):
+                continue
             try:
                 time.sleep(0.05)#sleep 50ms
                 recvData = self.clientSocket.recv(1024) # should no wait
