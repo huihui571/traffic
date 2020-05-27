@@ -149,8 +149,10 @@ class QueryClientClass(threading.Thread):
         
         preTime = self.curTime
         self.curTime = time.time()
+        timeArray = time.localtime(self.curTime)
+        otherStyleTime = time.strftime("%Y-%m-%d %H:%M:%S", timeArray)
         print("handlePluseData")
-        print('-----------------total time:{:4f}--------------------'.format(self.curTime - preTime))
+        print('[{}]---------total time:{:4f}----------------'.format(otherStyleTime, self.curTime - preTime))
         print(recvData)
             
     def handleRevc(self,recvData):
