@@ -135,5 +135,8 @@ dmypy.json
 .vscode/
 weights/
 *.weights
+imgs/
+det/
 pallete
 sftp-config.json
+.git
