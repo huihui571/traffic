@@ -17,7 +17,7 @@ from Detector.EfficientDet.utils.utils import preprocess_raw, invert_affine, pos
 
 
 class Model():
-    def __init__(self, compound_coef=3, force_input_size=256, threshold=0.2, iou_threshold=0.15):
+    def __init__(self, compound_coef=2, force_input_size=256, threshold=0.2, iou_threshold=0.15):
     #def __init__(self, compound_coef=0, force_input_size=512, threshold=0.2, iou_threshold=0.15):
         self.compound_coef = compound_coef
         self.force_input_size = force_input_size  # set None to use default size
@@ -98,14 +98,15 @@ class Model():
                 continue
 
             for j in range(len(preds[i]['rois'])):
-                (x1, y1, x2, y2) = preds[i]['rois'][j].astype(np.int)
-                cv2.rectangle(imgs[i], (x1, y1), (x2, y2), (255, 255, 0), 2)
                 obj = self.obj_list[preds[i]['class_ids'][j]]
-                score = float(preds[i]['scores'][j])
+                if obj == "car" or obj == "bus" or obj == "truck":
+                    (x1, y1, x2, y2) = preds[i]['rois'][j].astype(np.int)
+                    cv2.rectangle(imgs[i], (x1, y1), (x2, y2), (255, 255, 0), 2)
+                    score = float(preds[i]['scores'][j])
 
-                cv2.putText(imgs[i], '{}, {:.3f}'.format(obj, score),
-                            (x1, y1 + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                            (255, 255, 0), 1)
+                    cv2.putText(imgs[i], '{}, {:.3f}'.format(obj, score),
+                                (x1, y1 + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                                (255, 255, 0), 1)
         
         return imgs
 
