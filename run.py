@@ -8,6 +8,7 @@ import logging
 import sys
 
 logging.basicConfig(level=logging.INFO)
+show_flag = False
 
 from settings import cam_addrs, roi, stop_line, crop_offset, crop_size, show_img_size
 from Detector.YOLO.gpu_detector import Model
@@ -62,15 +63,15 @@ def push_image(raw_q, cam_addr, cam_id=0):
             time.sleep(0.01)
 
 
-def predict(raw_q, pred_q, tcp_q=None, cam_id = 0):
+def predict(raw_q, cam_id, tcp_q=None, pred_q=None,):
     model = Model()
     is_opened = True
 
     logging.info('PID: {}, SIZE: {}'.format(os.getpid(), raw_q.qsize()))
     while is_opened:
-        logging.info('{} blocked: raw_q: {}, pred_q: {}'.format(os.getpid(), raw_q.qsize(), pred_q.qsize()))
+        # logging.info('{} blocked: raw_q: {}, pred_q: {}'.format(os.getpid(), raw_q.qsize(), pred_q.qsize()))
         raw_img = raw_q.get()
-        logging.info('{} got image: raw_q: {}, pred_q: {}'.format(os.getpid(), raw_q.qsize(), pred_q.qsize()))
+        # logging.info('{} got image: raw_q: {}, pred_q: {}'.format(os.getpid(), raw_q.qsize(), pred_q.qsize()))
 
         raw_img= crop_image(raw_img, cam_id)
         pred_img, pred_result = model.predict(raw_img)
@@ -80,8 +81,10 @@ def predict(raw_q, pred_q, tcp_q=None, cam_id = 0):
         # car_num = [[0, 0, 0], [0, 0, 0]]
 
         result = (pred_img, car_num)
-        pred_q.put(result)
-        tcp_q.put(car_num)
+        if pred_q is not None:
+            pred_q.put(result)
+        if tcp_q is not None:
+            tcp_q.put(car_num)
         # while tcp_q.qsize() > 4:
         #     tcp_q.get()
 
@@ -157,13 +160,17 @@ def run_multi_camera_in_a_window(cam_addrs, img_shape):
     show_queues = [mp.Queue(maxsize=4) for _ in cam_addrs]
     tcp_queues = [mp.Queue(maxsize=4) for _ in cam_addrs]
 
+    processes = []
     processes = [mp.Process(name="dsrv",target=run_detect_server, args=(tcp_queues, ))] #FIXME: report error if remove the ","
-    # processes = []
-    processes.append(mp.Process(name="comb",target=combine_images, args=(show_queues, 'CAMs', img_shape)))
+    if show_flag:
+        processes.append(mp.Process(name="comb",target=combine_images, args=(show_queues, 'CAMs', img_shape)))
     # gantian
     for raw_q, show_q, tcp_q, cam_addr, cam_id in zip(raw_queues, show_queues, tcp_queues, cam_addrs, range(len(cam_addrs))):
         processes.append(mp.Process(name="push",target=push_image, args=(raw_q, cam_addr, cam_id)))
-        processes.append(mp.Process(name="pred",target=predict, args=(raw_q, show_q, tcp_q, cam_id)))
+        if show_flag:
+            processes.append(mp.Process(name="pred",target=predict, args=(raw_q, cam_id, tcp_q, show_q)))
+        else:
+            processes.append(mp.Process(name="pred",target=predict, args=(raw_q, cam_id, tcp_q)))
     '''
     processes = [mp.Process(target=combine_images, args=(raw_queues, 'CAMs'))]
     for raw_q, pred_q, cam_addr in zip(raw_queues, pred_queues, cam_addrs):
