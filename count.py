@@ -58,8 +58,8 @@ def get_car_num(pred_img, pred_result, roi, stop_line):
         center = x1 + (x2 - x1) / 2, y1 + (y2 - y1) / 2
         bottom_center = x1 + (x2 - x1) / 2, y2
         for ch in range(len(roi)):
-            # judge by the bottom_center of the bounding box, added center for the left roi
-            if isPointInRect(bottom_center, roi[ch]) or isPointInRect(center, roi[0]):
+            # judge by the bottom_center of the bounding box
+            if isPointInRect(bottom_center, roi[ch]):
                 cv2.circle(pred_img, (int(bottom_center[0]), int(bottom_center[1])), 5, (0, 0, 255))
                 c_y = center[1]
                 if label == "car":
