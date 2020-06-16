@@ -1,5 +1,10 @@
 import numpy as np
 import cv2
+from scipy import stats
+
+MAX_SIZE = 3
+frame_index = 0
+car_num_q = np.zeros((MAX_SIZE, 2, 3))
 
 
 def isPointInRect(p, rect):
@@ -7,15 +12,16 @@ def isPointInRect(p, rect):
     judge weather the point is in the area, the rect area must be convex, Counterclockwise
     '''
     a, b, c, d = rect[0], rect[1], rect[2], rect[3]
-    t1 = (b[0] - a[0])*(p[1] - a[1]) - (b[1] - a[1])*(p[0] - a[0])
-    t2 = (c[0] - b[0])*(p[1] - b[1]) - (c[1] - b[1])*(p[0] - b[0])
-    t3 = (d[0] - c[0])*(p[1] - c[1]) - (d[1] - c[1])*(p[0] - c[0])
-    t4 = (a[0] - d[0])*(p[1] - d[1]) - (a[1] - d[1])*(p[0] - d[0])
+    t1 = (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])
+    t2 = (c[0] - b[0]) * (p[1] - b[1]) - (c[1] - b[1]) * (p[0] - b[0])
+    t3 = (d[0] - c[0]) * (p[1] - c[1]) - (d[1] - c[1]) * (p[0] - c[0])
+    t4 = (a[0] - d[0]) * (p[1] - d[1]) - (a[1] - d[1]) * (p[0] - d[0])
 
-    if (t1>0 and t2>0 and t3>0 and t4>0) or (t1<0 and t2<0 and t3<0 and t4<0):
+    if (t1 > 0 and t2 > 0 and t3 > 0 and t4 > 0) or (t1 < 0 and t2 < 0 and t3 < 0 and t4 < 0):
         return True
     else:
         return False
+
 
 def draw_stop_line(pred_img, roi, stop_line_y):
     '''
@@ -32,7 +38,8 @@ def draw_stop_line(pred_img, roi, stop_line_y):
     line_color = (255, 0, 0)
     cv2.line(pred_img, (st_x_1, y), (st_x_2, y), line_color)
 
-def get_car_num(pred_img, pred_result, roi, stop_line):
+
+def get_car_num(pred_img, pred_result, roi, stop_line, smooth="max"):
     '''
     count cars int the roi area for a single img
     '''
@@ -54,14 +61,14 @@ def get_car_num(pred_img, pred_result, roi, stop_line):
 
         if not (label == "car" or label == "bus" or label == "truck"):
             continue
-            
+
         center = x1 + (x2 - x1) / 2, y1 + (y2 - y1) / 2
         bottom_center = x1 + (x2 - x1) / 2, y2
         for ch in range(len(roi)):
             # judge by the bottom_center of the bounding box
             if isPointInRect(bottom_center, roi[ch]):
                 # cv2.circle(pred_img, (int(bottom_center[0]), int(bottom_center[1])), 5, (0, 0, 255))
-                cv2.rectangle(pred_img, (x1, y1), (x2, y2), (0, 0, 255), 2)     # highlight result
+                cv2.rectangle(pred_img, (x1, y1), (x2, y2), (0, 0, 255), 2)  # highlight result
                 c_y = center[1]
                 if label == "car":
                     if (c_y > stop_line[1]):
@@ -79,33 +86,51 @@ def get_car_num(pred_img, pred_result, roi, stop_line):
                     elif (c_y < stop_line[2]):
                         car_num[ch][2] += 3
 
+    print("origin:{} ".format(car_num))
+    global car_num_q, frame_index
+    car_num_q[frame_index] = car_num
+    frame_index = (frame_index + 1) % MAX_SIZE
+    ret = np.zeros((2, 3))
+    if smooth == "mean":
+        ret = np.mean(car_num_q, axis=0)
+    elif smooth == "mode":
+        mode, _ = stats.mode(car_num_q, axis=0)
+        ret = mode[0]
+    elif smooth == "max":
+        ret = np.max(car_num_q, axis=0)
+    ret = ret.astype(int)
+    print("smooth:{}".format(ret))
 
-    return car_num
+    return ret
 
 def draw_counts(img, car_num, img_shape):
     '''
     pt1 ----
     '''
     img_ = cv2.resize(img, img_shape)
-    pt1 = (img_shape[0]-5-60, 20)
-    pt2 = (img_shape[0]-5, 20+80)
+    pt1 = (img_shape[0] - 5 - 60, 20)
+    pt2 = (img_shape[0] - 5, 20 + 80)
     line_color = (0, 128, 255)
     cv2.rectangle(img_, pt1, pt2, line_color)
     cv2.line(img_, (pt1[0], pt1[1] + 20), (pt1[0] + 60, pt1[1] + 20), line_color)
     cv2.line(img_, (pt1[0], pt1[1] + 65), (pt1[0] + 60, pt1[1] + 65), line_color)
     cv2.line(img_, (pt1[0] + 30, pt1[1]), (pt1[0] + 30, pt1[1] + 80), line_color)
     cv2.putText(img_, 'left', (pt1[0] + 2, pt1[1] + 17), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
-    cv2.putText(img_, '{}'.format(car_num[0][0]), (pt1[0] + 5, pt1[1] + 17 +15), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
-    cv2.putText(img_, '{}'.format(car_num[0][1]), (pt1[0] + 5, pt1[1] + 17 +30), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
-    cv2.putText(img_, '{}'.format(car_num[0][2]), (pt1[0] + 5, pt1[1] + 17 +45), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
-    cv2.putText(img_, '{}'.format(sum(car_num[0])), (pt1[0] + 5, pt1[1] + 17 +60), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
+    cv2.putText(img_, '{}'.format(car_num[0][0]), (pt1[0] + 5, pt1[1] + 17 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
+                line_color)
+    cv2.putText(img_, '{}'.format(car_num[0][1]), (pt1[0] + 5, pt1[1] + 17 + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
+                line_color)
+    cv2.putText(img_, '{}'.format(car_num[0][2]), (pt1[0] + 5, pt1[1] + 17 + 45), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
+                line_color)
+    cv2.putText(img_, '{}'.format(sum(car_num[0])), (pt1[0] + 5, pt1[1] + 17 + 60), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
+                line_color)
     cv2.putText(img_, 'others', (pt1[0] + 2 + 30, pt1[1] + 17), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
-    cv2.putText(img_, '{}'.format(car_num[1][0]), (pt1[0] + 5 + 30, pt1[1] + 17 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
-    cv2.putText(img_, '{}'.format(car_num[1][1]), (pt1[0] + 5 + 30, pt1[1] + 17 + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
-    cv2.putText(img_, '{}'.format(car_num[1][2]), (pt1[0] + 5 + 30, pt1[1] + 17 + 45), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
-    cv2.putText(img_, '{}'.format(sum(car_num[1])), (pt1[0] + 5 + 30, pt1[1] + 17 + 60), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
+    cv2.putText(img_, '{}'.format(car_num[1][0]), (pt1[0] + 5 + 30, pt1[1] + 17 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
+                line_color)
+    cv2.putText(img_, '{}'.format(car_num[1][1]), (pt1[0] + 5 + 30, pt1[1] + 17 + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
+                line_color)
+    cv2.putText(img_, '{}'.format(car_num[1][2]), (pt1[0] + 5 + 30, pt1[1] + 17 + 45), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
+                line_color)
+    cv2.putText(img_, '{}'.format(sum(car_num[1])), (pt1[0] + 5 + 30, pt1[1] + 17 + 60), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
+                line_color)
     return img_
-            
-
-        
-

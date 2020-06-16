@@ -8,7 +8,7 @@ import logging
 import sys
 
 logging.basicConfig(level=logging.INFO)
-show_flag = False
+show_flag = True
 
 from settings import cam_addrs, roi, stop_line, crop_offset, crop_size, show_img_size
 from Detector.YOLO.gpu_detector import Model
@@ -75,7 +75,7 @@ def predict(raw_q, cam_id, tcp_q=None, pred_q=None,):
 
         raw_img= crop_image(raw_img, cam_id)
         pred_img, pred_result = model.predict(raw_img)
-        car_num = get_car_num(pred_img, pred_result, crop_roi[cam_id], crop_stop_line[cam_id])
+        car_num = get_car_num(pred_img, pred_result, crop_roi[cam_id], crop_stop_line[cam_id], smooth="max")
         # gantian
         # pred_img = raw_img
         # car_num = [[0, 0, 0], [0, 0, 0]]
