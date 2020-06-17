@@ -1,6 +1,6 @@
 import numpy as np
 import cv2
-from scipy import stats
+# from scipy import stats
 
 MAX_SIZE = 3
 frame_index = 0
@@ -86,20 +86,20 @@ def get_car_num(pred_img, pred_result, roi, stop_line, smooth="max"):
                     elif (c_y < stop_line[2]):
                         car_num[ch][2] += 3
 
-    print("origin:{} ".format(car_num))
+    # print("origin:{} ".format(car_num))
     global car_num_q, frame_index
     car_num_q[frame_index] = car_num
     frame_index = (frame_index + 1) % MAX_SIZE
     ret = np.zeros((2, 3))
     if smooth == "mean":
         ret = np.mean(car_num_q, axis=0)
-    elif smooth == "mode":
-        mode, _ = stats.mode(car_num_q, axis=0)
-        ret = mode[0]
+    # elif smooth == "mode":
+    #     mode, _ = stats.mode(car_num_q, axis=0)
+    #     ret = mode[0]
     elif smooth == "max":
         ret = np.max(car_num_q, axis=0)
     ret = ret.astype(int)
-    print("smooth:{}".format(ret))
+    # print("smooth:{}".format(ret))
 
     return ret
 
@@ -108,29 +108,31 @@ def draw_counts(img, car_num, img_shape):
     pt1 ----
     '''
     img_ = cv2.resize(img, img_shape)
-    pt1 = (img_shape[0] - 5 - 60, 20)
-    pt2 = (img_shape[0] - 5, 20 + 80)
+    # pt1 = (img_shape[0] - 5 - 60, 20)
+    # pt2 = (img_shape[0] - 5, 20 + 80)
+    pt1 = (0 + 5, 20)
+    pt2 = (0 + 5 + 60, 20 + 80)
     line_color = (0, 128, 255)
     cv2.rectangle(img_, pt1, pt2, line_color)
     cv2.line(img_, (pt1[0], pt1[1] + 20), (pt1[0] + 60, pt1[1] + 20), line_color)
     cv2.line(img_, (pt1[0], pt1[1] + 65), (pt1[0] + 60, pt1[1] + 65), line_color)
     cv2.line(img_, (pt1[0] + 30, pt1[1]), (pt1[0] + 30, pt1[1] + 80), line_color)
     cv2.putText(img_, 'left', (pt1[0] + 2, pt1[1] + 17), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
-    cv2.putText(img_, '{}'.format(car_num[0][0]), (pt1[0] + 5, pt1[1] + 17 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
-                line_color)
-    cv2.putText(img_, '{}'.format(car_num[0][1]), (pt1[0] + 5, pt1[1] + 17 + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
-                line_color)
-    cv2.putText(img_, '{}'.format(car_num[0][2]), (pt1[0] + 5, pt1[1] + 17 + 45), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
-                line_color)
-    cv2.putText(img_, '{}'.format(sum(car_num[0])), (pt1[0] + 5, pt1[1] + 17 + 60), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
-                line_color)
+    cv2.putText(img_, '{}'.format(car_num[0][0]), (pt1[0] + 5, pt1[1] + 17 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                line_color, 2)
+    cv2.putText(img_, '{}'.format(car_num[0][1]), (pt1[0] + 5, pt1[1] + 17 + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                line_color, 2)
+    cv2.putText(img_, '{}'.format(car_num[0][2]), (pt1[0] + 5, pt1[1] + 17 + 45), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                line_color, 2)
+    cv2.putText(img_, '{}'.format(sum(car_num[0])), (pt1[0] + 5, pt1[1] + 17 + 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                line_color, 2)
     cv2.putText(img_, 'others', (pt1[0] + 2 + 30, pt1[1] + 17), cv2.FONT_HERSHEY_SIMPLEX, 0.3, line_color)
-    cv2.putText(img_, '{}'.format(car_num[1][0]), (pt1[0] + 5 + 30, pt1[1] + 17 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
-                line_color)
-    cv2.putText(img_, '{}'.format(car_num[1][1]), (pt1[0] + 5 + 30, pt1[1] + 17 + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
-                line_color)
-    cv2.putText(img_, '{}'.format(car_num[1][2]), (pt1[0] + 5 + 30, pt1[1] + 17 + 45), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
-                line_color)
-    cv2.putText(img_, '{}'.format(sum(car_num[1])), (pt1[0] + 5 + 30, pt1[1] + 17 + 60), cv2.FONT_HERSHEY_SIMPLEX, 0.3,
-                line_color)
+    cv2.putText(img_, '{}'.format(car_num[1][0]), (pt1[0] + 5 + 30, pt1[1] + 17 + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                line_color, 2)
+    cv2.putText(img_, '{}'.format(car_num[1][1]), (pt1[0] + 5 + 30, pt1[1] + 17 + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                line_color, 2)
+    cv2.putText(img_, '{}'.format(car_num[1][2]), (pt1[0] + 5 + 30, pt1[1] + 17 + 45), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                line_color, 2)
+    cv2.putText(img_, '{}'.format(sum(car_num[1])), (pt1[0] + 5 + 30, pt1[1] + 17 + 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                line_color, 2)
     return img_
