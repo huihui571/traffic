@@ -69,7 +69,7 @@ def get_car_num(pred_img, pred_result, roi, stop_line, smooth="max"):
             if isPointInRect(bottom_center, roi[ch]):
                 # cv2.circle(pred_img, (int(bottom_center[0]), int(bottom_center[1])), 5, (0, 0, 255))
                 cv2.rectangle(pred_img, (x1, y1), (x2, y2), (0, 0, 255), 2)  # highlight result
-                c_y = center[1]
+                c_y = bottom_center[1]
                 if label == "car":
                     if (c_y > stop_line[1]):
                         car_num[ch][0] += 1
