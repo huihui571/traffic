@@ -8,7 +8,7 @@ import logging
 import sys
 import threading
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 show_flag = True
 
 from settings import cam_addrs, roi, stop_line, crop_offset, crop_size, show_img_size
@@ -25,19 +25,6 @@ def crop_image(src_img, cam_id):
               crop_offset[cam_id][1] : crop_offset[cam_id][1] + crop_size[1]]
 
     return det_img
-
-
-# def crop_roi(cam_id):
-#     '''should be executed only once'''
-#     for ch in range(len(roi[cam_id])):
-#         for p in range(len(roi[cam_id][ch])):
-#                 roi[cam_id][ch][p][0] = roi[cam_id][ch][p][0] - crop_offset[cam_id][1]
-#                 roi[cam_id][ch][p][1] = roi[cam_id][ch][p][1] - crop_offset[cam_id][0]
-
-#     for line in range(len(stop_line[cam_id])):
-#         stop_line[cam_id][line] = stop_line[cam_id][line] - crop_offset[cam_id][0]
-
-#     print("cam_id:{}, roi:{}".format(cam_id, roi[cam_id]))
 
 
 def roi_init(cam_addrs):
@@ -80,6 +67,9 @@ def push_image(raw_q, cam_addr, cam_id=0):
 # def predict_in_thread(model, raw_q, cam_id, tcp_q, show_q):
 def predict_in_thread(model, raw_q, cam_id, show_q):
     is_opened = True
+    MAX_SIZE = 3
+    frame_index = 0
+    car_num_q = np.zeros((MAX_SIZE, 2, 3))
 
     while is_opened:
         logging.info('thread {} blocked: raw_q: {}, pred_q: {}'.format(cam_id , raw_q.qsize(), show_q.qsize()))
@@ -88,7 +78,8 @@ def predict_in_thread(model, raw_q, cam_id, show_q):
 
         raw_img= crop_image(raw_img, cam_id)
         pred_img, pred_result = model.predict(raw_img, cam_id)
-        car_num = get_car_num(pred_img, pred_result, roi[cam_id], stop_line[cam_id], smooth="max")
+        car_num = get_car_num(pred_img, pred_result, roi[cam_id], stop_line[cam_id], (car_num_q, frame_index, MAX_SIZE),
+                              smooth="max")
         # gantian
         # pred_img = raw_img
         # car_num = [[0, 0, 0], [0, 0, 0]]

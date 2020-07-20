@@ -2,9 +2,6 @@ import numpy as np
 import cv2
 # from scipy import stats
 
-MAX_SIZE = 3
-frame_index = 0
-car_num_q = np.zeros((MAX_SIZE, 2, 3))
 
 
 def isPointInRect(p, rect):
@@ -39,7 +36,7 @@ def draw_stop_line(pred_img, roi, stop_line_y):
     cv2.line(pred_img, (st_x_1, y), (st_x_2, y), line_color)
 
 
-def get_car_num(pred_img, pred_result, roi, stop_line, smooth="max"):
+def get_car_num(pred_img, pred_result, roi, stop_line, num_q, smooth="max"):
     '''
     count cars int the roi area for a single img
     '''
@@ -89,7 +86,7 @@ def get_car_num(pred_img, pred_result, roi, stop_line, smooth="max"):
                         car_num[ch][2] += 3
 
     # print("origin:{} ".format(car_num))
-    global car_num_q, frame_index
+    car_num_q, frame_index, MAX_SIZE = num_q
     car_num_q[frame_index] = car_num
     frame_index = (frame_index + 1) % MAX_SIZE
     ret = np.zeros((2, 3))
