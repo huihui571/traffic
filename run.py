@@ -6,38 +6,52 @@ import os
 import numpy as np
 import logging
 import sys
+import threading
 
 logging.basicConfig(level=logging.INFO)
 show_flag = True
 
 from settings import cam_addrs, roi, stop_line, crop_offset, crop_size, show_img_size
-from Detector.YOLO.gpu_detector import Model
+# from Detector.YOLO.gpu_detector import Model
 # from Detector.EfficientDet.gpu_detector import Model
 # from Detector.EfficientDet.cpu_detector import Model
+from Detector.TensorRT_yolo3_module_trt7.gpu_detector import Model
 from count import get_car_num, draw_counts
 from commu.detect_server import run_detect_server
 
-crop_roi_once = True
-crop_roi = roi.copy()
-crop_stop_line = stop_line.copy()
+
 def crop_image(src_img, cam_id):
     det_img = src_img[crop_offset[cam_id][0]: crop_offset[cam_id][0] + crop_size[0],
               crop_offset[cam_id][1] : crop_offset[cam_id][1] + crop_size[1]]
 
-    global crop_roi_once
-    if crop_roi_once:
+    return det_img
+
+
+# def crop_roi(cam_id):
+#     '''should be executed only once'''
+#     for ch in range(len(roi[cam_id])):
+#         for p in range(len(roi[cam_id][ch])):
+#                 roi[cam_id][ch][p][0] = roi[cam_id][ch][p][0] - crop_offset[cam_id][1]
+#                 roi[cam_id][ch][p][1] = roi[cam_id][ch][p][1] - crop_offset[cam_id][0]
+
+#     for line in range(len(stop_line[cam_id])):
+#         stop_line[cam_id][line] = stop_line[cam_id][line] - crop_offset[cam_id][0]
+
+#     print("cam_id:{}, roi:{}".format(cam_id, roi[cam_id]))
+
+
+def roi_init(cam_addrs):
+    '''should be executed only once'''
+    for cam_id in range(len(cam_addrs)):
         for ch in range(len(roi[cam_id])):
             for p in range(len(roi[cam_id][ch])):
-                    crop_roi[cam_id][ch][p][0] = roi[cam_id][ch][p][0] - crop_offset[cam_id][1]
-                    crop_roi[cam_id][ch][p][1] = roi[cam_id][ch][p][1] - crop_offset[cam_id][0]
+                    roi[cam_id][ch][p][0] = roi[cam_id][ch][p][0] - crop_offset[cam_id][1]
+                    roi[cam_id][ch][p][1] = roi[cam_id][ch][p][1] - crop_offset[cam_id][0]
 
         for line in range(len(stop_line[cam_id])):
-            crop_stop_line[cam_id][line] = stop_line[cam_id][line] - crop_offset[cam_id][0]
+            stop_line[cam_id][line] = stop_line[cam_id][line] - crop_offset[cam_id][0]
+        print("cam_id:{}, roi:{}".format(cam_id, roi[cam_id]))
 
-        crop_roi_once = False
-
-    # print("cam_id:{}, roi:{}".format(cam_id, roi[cam_id]))
-    return det_img
 
 def push_image(raw_q, cam_addr, cam_id=0):
     cap = cv2.VideoCapture(cam_addr, cv2.CAP_FFMPEG)
@@ -63,30 +77,40 @@ def push_image(raw_q, cam_addr, cam_id=0):
             time.sleep(0.01)
 
 
-def predict(raw_q, cam_id, tcp_q=None, pred_q=None,):
-    model = Model()
+# def predict_in_thread(model, raw_q, cam_id, tcp_q, show_q):
+def predict_in_thread(model, raw_q, cam_id, show_q):
     is_opened = True
 
-    logging.info('PID: {}, SIZE: {}'.format(os.getpid(), raw_q.qsize()))
     while is_opened:
-        # logging.info('{} blocked: raw_q: {}, pred_q: {}'.format(os.getpid(), raw_q.qsize(), pred_q.qsize()))
+        logging.info('thread {} blocked: raw_q: {}, pred_q: {}'.format(cam_id , raw_q.qsize(), show_q.qsize()))
         raw_img = raw_q.get()
-        # logging.info('{} got image: raw_q: {}, pred_q: {}'.format(os.getpid(), raw_q.qsize(), pred_q.qsize()))
+        logging.info('thread {} got image: raw_q: {}, pred_q: {}'.format(cam_id, raw_q.qsize(), show_q.qsize()))
 
         raw_img= crop_image(raw_img, cam_id)
-        pred_img, pred_result = model.predict(raw_img)
-        car_num = get_car_num(pred_img, pred_result, crop_roi[cam_id], crop_stop_line[cam_id], smooth="max")
+        pred_img, pred_result = model.predict(raw_img, cam_id)
+        car_num = get_car_num(pred_img, pred_result, roi[cam_id], stop_line[cam_id], smooth="max")
         # gantian
         # pred_img = raw_img
         # car_num = [[0, 0, 0], [0, 0, 0]]
 
         result = (pred_img, car_num)
-        if pred_q is not None:
-            pred_q.put(result)
-        if tcp_q is not None:
-            tcp_q.put(car_num)
+        if show_q is not None:
+            show_q.put(result)
+        # if tcp_q is not None:
+        #     tcp_q.put(car_num)
         # while tcp_q.qsize() > 4:
         #     tcp_q.get()
+
+
+# def predict(raw_qs, tcp_qs=None, show_qs=None):
+def predict(raw_qs, show_qs=None):
+    roi_init(cam_addrs)
+    model = Model()
+
+    for id in range(len(raw_qs)):
+        # t = threading.Thread(target=predict_in_thread, args=(model, raw_qs[id], id, tcp_qs[id], show_qs[id], ))
+        t = threading.Thread(target=predict_in_thread, args=(model, raw_qs[id], id, show_qs[id], ))
+        t.start()
 
 
 def pop_image(pred_q, window_name, img_shape):
@@ -161,16 +185,18 @@ def run_multi_camera_in_a_window(cam_addrs, img_shape):
     tcp_queues = [mp.Queue(maxsize=4) for _ in cam_addrs]
 
     processes = []
-    processes = [mp.Process(name="dsrv",target=run_detect_server, args=(tcp_queues, ))] #FIXME: report error if remove the ","
+    # processes = [mp.Process(name="dsrv",target=run_detect_server, args=(tcp_queues, ))] #FIXME: report error if remove the ","
     if show_flag:
+        # processes.append(mp.Process(name="pred", target=predict, args=(raw_queues, tcp_queues, show_queues)))
+        processes.append(mp.Process(name="pred", target=predict, args=(raw_queues, show_queues)))
         processes.append(mp.Process(name="comb",target=combine_images, args=(show_queues, 'CAMs', img_shape)))
     # gantian
     for raw_q, show_q, tcp_q, cam_addr, cam_id in zip(raw_queues, show_queues, tcp_queues, cam_addrs, range(len(cam_addrs))):
         processes.append(mp.Process(name="push",target=push_image, args=(raw_q, cam_addr, cam_id)))
-        if show_flag:
-            processes.append(mp.Process(name="pred",target=predict, args=(raw_q, cam_id, tcp_q, show_q)))
-        else:
-            processes.append(mp.Process(name="pred",target=predict, args=(raw_q, cam_id, tcp_q)))
+        # if show_flag:
+        #     processes.append(mp.Process(name="pred",target=predict, args=(raw_q, cam_id, tcp_q, show_q)))
+        # else:
+        #     processes.append(mp.Process(name="pred",target=predict, args=(raw_q, cam_id, tcp_q)))
     '''
     processes = [mp.Process(target=combine_images, args=(raw_queues, 'CAMs'))]
     for raw_q, pred_q, cam_addr in zip(raw_queues, pred_queues, cam_addrs):

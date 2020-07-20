@@ -52,6 +52,8 @@ def get_car_num(pred_img, pred_result, roi, stop_line, smooth="max"):
     draw_stop_line(pred_img, roi, stop_line[1])
     draw_stop_line(pred_img, roi, stop_line[2])
     for i in range(len(pred_result)):
+        if pred_result[i]['label'] == "non":
+            continue
         x1 = pred_result[i]['points'][0]
         y1 = pred_result[i]['points'][1]
         x2 = pred_result[i]['points'][2]
