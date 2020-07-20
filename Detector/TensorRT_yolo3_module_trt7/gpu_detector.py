@@ -153,10 +153,10 @@ class Model():
                     detections = torch.cat((detections, trt_output), 1)
 
             o_time1 = time.time()
-            print('TensorRT inference time : %f' % (o_time1 - inference_start))
+            # print('TensorRT inference time : %f' % (o_time1 - inference_start))
             dets = dynamic_write_results(detections, 0.5, self.num_classes, nms=True, nms_conf=0.45)
             o_time2 = time.time()
-            print('After process time : %f' % (o_time2 - o_time1))
+            # print('After process time : %f' % (o_time2 - o_time1))
 
             shapes = []
             if not isinstance(dets, int):
