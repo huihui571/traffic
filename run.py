@@ -4,11 +4,13 @@ import cv2
 import gc
 import os
 import numpy as np
-import logging
-import sys
 import threading
+import logging
+from logging.handlers import TimedRotatingFileHandler
 
-logging.basicConfig(level=logging.WARNING)
+formatter = logging.Formatter('%(asctime)s\t%(levelname)s: %(message)s')
+logging.basicConfig(level=logging.INFO)
+
 show_flag = True
 
 from settings import cam_addrs, roi, stop_line, crop_offset, crop_size, show_img_size
@@ -41,18 +43,22 @@ def roi_init(cam_addrs):
 
 
 def push_image(raw_q, cam_addr, cam_id=0):
+    log_file_handler = TimedRotatingFileHandler(filename="./log/push/pushlog", when="H", interval=12, backupCount=6)
+    log_file_handler.setFormatter(formatter)
+    log = logging.getLogger()
+    log.addHandler(log_file_handler)
     cap = cv2.VideoCapture(cam_addr, cv2.CAP_FFMPEG)
     once = True
     while True:
         is_opened, frame = cap.read()
         if is_opened:
             if once:
-                logging.info("write cam{} original image, size:{}".format(cam_id, frame.shape))
+                log.info("write cam{} original image, size:{}".format(cam_id, frame.shape))
                 once = False
             raw_q.put(frame)
         else:
             err_pid = os.getpid()
-            logging.warning('{} reconnecting ...'.format(err_pid))
+            log.warning('{} reconnecting ...'.format(err_pid))
             cap = cv2.VideoCapture(cam_addr, cv2.CAP_FFMPEG)
             is_opened, frame = cap.read()
             if is_opened:
@@ -64,17 +70,21 @@ def push_image(raw_q, cam_addr, cam_id=0):
             time.sleep(0.01)
 
 
-# def predict_in_thread(model, raw_q, cam_id, tcp_q, show_q):
-def predict_in_thread(model, raw_q, cam_id, show_q):
+def predict_in_thread(model, raw_q, cam_id, tcp_q, show_q):
+# def predict_in_thread(model, raw_q, cam_id, show_q):
+    log_file_handler = TimedRotatingFileHandler(filename="./log/predict/predictlog", when="H", interval=12, backupCount=6)
+    log_file_handler.setFormatter(formatter)
+    log = logging.getLogger()
+    log.addHandler(log_file_handler)
     is_opened = True
     MAX_SIZE = 3
     frame_index = 0
     car_num_q = np.zeros((MAX_SIZE, 2, 3))
 
     while is_opened:
-        logging.info('thread {} blocked: raw_q: {}, pred_q: {}'.format(cam_id , raw_q.qsize(), show_q.qsize()))
+        log.info('thread {} blocked: raw_q: {}, pred_q: {}'.format(cam_id , raw_q.qsize(), show_q.qsize()))
         raw_img = raw_q.get()
-        logging.info('thread {} got image: raw_q: {}, pred_q: {}'.format(cam_id, raw_q.qsize(), show_q.qsize()))
+        log.info('thread {} got image: raw_q: {}, pred_q: {}'.format(cam_id, raw_q.qsize(), show_q.qsize()))
 
         raw_img= crop_image(raw_img, cam_id)
         pred_img, pred_result = model.predict(raw_img, cam_id)
@@ -87,20 +97,20 @@ def predict_in_thread(model, raw_q, cam_id, show_q):
         result = (pred_img, car_num)
         if show_q is not None:
             show_q.put(result)
-        # if tcp_q is not None:
-        #     tcp_q.put(car_num)
+        if tcp_q is not None:
+            tcp_q.put(car_num)
         # while tcp_q.qsize() > 4:
         #     tcp_q.get()
 
 
-# def predict(raw_qs, tcp_qs=None, show_qs=None):
-def predict(raw_qs, show_qs=None):
+def predict(raw_qs, tcp_qs=None, show_qs=None):
+# def predict(raw_qs, show_qs=None):
     roi_init(cam_addrs)
     model = Model()
 
     for id in range(len(raw_qs)):
-        # t = threading.Thread(target=predict_in_thread, args=(model, raw_qs[id], id, tcp_qs[id], show_qs[id], ))
-        t = threading.Thread(target=predict_in_thread, args=(model, raw_qs[id], id, show_qs[id], ))
+        t = threading.Thread(target=predict_in_thread, args=(model, raw_qs[id], id, tcp_qs[id], show_qs[id], ))
+        # t = threading.Thread(target=predict_in_thread, args=(model, raw_qs[id], id, show_qs[id], ))
         t.start()
 
 
@@ -148,11 +158,15 @@ def run_multi_camera(cam_addrs, window_names, img_shape):
 
 
 def combine_images(img_queue_list, window_name, img_shape):
+    log_file_handler = TimedRotatingFileHandler(filename="./log/show/showlog", when="H", interval=12, backupCount=6)
+    log_file_handler.setFormatter(formatter)
+    log = logging.getLogger()
+    log.addHandler(log_file_handler)
     cv2.namedWindow(window_name, flags=cv2.WINDOW_FREERATIO)
     while True:
         t1 = time.time()
         result = [q.get() for q in img_queue_list]
-        logging.info('combine got result')
+        log.info('combine got result')
 
         ###gantian
         imgs = list(map(lambda x: draw_counts(x[0], x[1], img_shape), result))
@@ -166,8 +180,8 @@ def combine_images(img_queue_list, window_name, img_shape):
         # cv2.imwrite('det/result.jpg', imgs)
         cv2.waitKey(1)
         t2 = time.time()
-        # logging.info('---------show---combine time:{:4f}--------------------'.format(t2-t1))
-        print('---------show---combine time:{:4f}--------------------'.format(t2-t1))
+        log.info('---------show---combine time:{:4f}--------------------'.format(t2-t1))
+        # print('---------show---combine time:{:4f}--------------------'.format(t2-t1))
 
 
 def run_multi_camera_in_a_window(cam_addrs, img_shape):
@@ -176,10 +190,10 @@ def run_multi_camera_in_a_window(cam_addrs, img_shape):
     tcp_queues = [mp.Queue(maxsize=4) for _ in cam_addrs]
 
     processes = []
-    # processes = [mp.Process(name="dsrv",target=run_detect_server, args=(tcp_queues, ))] #FIXME: report error if remove the ","
+    processes = [mp.Process(name="dsrv",target=run_detect_server, args=(tcp_queues, ))] #FIXME: report error if remove the ","
     if show_flag:
-        # processes.append(mp.Process(name="pred", target=predict, args=(raw_queues, tcp_queues, show_queues)))
-        processes.append(mp.Process(name="pred", target=predict, args=(raw_queues, show_queues)))
+        processes.append(mp.Process(name="pred", target=predict, args=(raw_queues, tcp_queues, show_queues)))
+        # processes.append(mp.Process(name="pred", target=predict, args=(raw_queues, show_queues)))
         processes.append(mp.Process(name="comb",target=combine_images, args=(show_queues, 'CAMs', img_shape)))
     # gantian
     for raw_q, show_q, tcp_q, cam_addr, cam_id in zip(raw_queues, show_queues, tcp_queues, cam_addrs, range(len(cam_addrs))):
