@@ -53,7 +53,9 @@ class Model():
         c2 = tuple(x[3:5].int()) # x2,y2
         cls = int(x[-1])
         # print("cls:", cls)
-        assert (cls>=0 and cls<self.num_classes)
+        # assert (cls>=0 and cls<self.num_classes)
+        if cls < 0 or cls >80:
+            return img
         label = "{0}".format(self.classes[cls]) # class name
         color = random.choice(self.colors)
         if label == "car" or label == "bus" or label == "truck":
@@ -66,7 +68,7 @@ class Model():
         return img
 
 
-    def predict(self, frame):
+    def predict(self, frame, cam_id=0):
         inp_dim = self.inp_dim
         CUDA = self.CUDA
         model = self.model
@@ -109,7 +111,10 @@ class Model():
             cls = int(x[-1])
             score = float(x[-2])
             conf = float(x[-3])
-            label = "{0}".format(self.classes[cls]).replace(" ", "_")  # class name
+            if cls < 0 or cls > 80:
+                label = ""
+            else:
+                label = "{0}".format(self.classes[cls]).replace(" ", "_")  # class name
             if CUDA:
                 points = list(map(lambda x: int(x.cpu().numpy().tolist()), x[1:5]))
             else:
