@@ -58,26 +58,26 @@ class Model():
             self.model = self.model.half()
 
 
-    def predict(self, raw_img):
-        self.ori_imgs, self.framed_imgs, self.framed_metas = preprocess_raw(raw_img, max_size=self.input_size)
+    def predict(self, raw_img, cam_id=0):
+        ori_imgs, framed_imgs, framed_metas = preprocess_raw(raw_img, max_size=self.input_size)
         if self.use_cuda:
-            x = torch.stack([torch.from_numpy(fi).cuda() for fi in self.framed_imgs], 0)
+            x = torch.stack([torch.from_numpy(fi).cuda() for fi in framed_imgs], 0)
         else:
-            x = torch.stack([torch.from_numpy(fi) for fi in self.framed_imgs], 0)
+            x = torch.stack([torch.from_numpy(fi) for fi in framed_imgs], 0)
         x = x.to(torch.float32 if not self.use_float16 else torch.float16).permute(0, 3, 1, 2)
 
         with torch.no_grad():
-            self.features, self.regression, self.classification, self.anchors = self.model(x)
+            features, regression, classification, anchors = self.model(x)
 
-            self.regressBoxes = BBoxTransform()
-            self.clipBoxes = ClipBoxes()
+            regressBoxes = BBoxTransform()
+            clipBoxes = ClipBoxes()
 
             out = postprocess(x,
-                            self.anchors, self.regression, self.classification,
-                            self.regressBoxes, self.clipBoxes,
+                            anchors, regression, classification,
+                            regressBoxes, clipBoxes,
                             self.threshold, self.iou_threshold)
-        pred_label = invert_affine(self.framed_metas, out)
-        pred_img = self.label_img(pred_label, self.ori_imgs)
+        pred_label = invert_affine(framed_metas, out)
+        pred_img = self.label_img(pred_label, ori_imgs)
 
         # return detect results in uniform interface
         shapes = []
