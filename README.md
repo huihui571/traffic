@@ -17,7 +17,7 @@
 
 ## 效果
 
-![Inked90b66bc59f19d579_LI.jpg](https://ae03.alicdn.com/kf/H7f34b51e1f7347559d4d419c2d449002f.jpg)
+![效果图](https://ftp.bmp.ovh/imgs/2021/03/0a35878ab85f97c1.jpg)
 
 
 ## 运行
